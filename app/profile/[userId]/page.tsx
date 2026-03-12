@@ -2,7 +2,6 @@ import { createClient } from '@/utils/supabase/server';
 import Image from 'next/image';
 import Link from 'next/link';
 
-// Correct type definition for Next.js 15+
 type ProfilePageProps = {
   params: Promise<{
     userId: string;
@@ -10,22 +9,27 @@ type ProfilePageProps = {
 };
 
 export default async function ProfilePage({ params }: ProfilePageProps) {
-  // 1. Await the params to get the userId
   const { userId } = await params;
-
   const supabase = await createClient();
 
-  // 2. Fetch profile information
+  // Fetch profile information
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single();
 
-  // 3. Fetch user's posts
+  // Fetch user's posts along with the count of recipe requests
   const { data: posts, error: postsError } = await supabase
     .from('posts')
-    .select('id, image_url, description')
+    .select(`
+      id,
+      image_url,
+      description,
+      recipe_requests (
+        count
+      )
+    `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -40,7 +44,6 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   return (
     <div className="min-h-screen bg-white text-black font-sans">
-      {/* PINTEREST STYLE HEADER */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md px-4 py-4 border-b border-gray-100 flex items-center gap-4">
         <div className="max-w-[1800px] mx-auto w-full flex items-center gap-4">
           <Link href="/" className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
@@ -56,7 +59,6 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       </header>
 
       <main className="max-w-[1200px] mx-auto py-12 px-4">
-        {/* PROFILE INFO */}
         <div className="flex flex-col items-center mb-12">
           <div className="w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center text-4xl font-bold text-gray-400 mb-4 border border-gray-100 shadow-sm">
             {profile.email?.charAt(0).toUpperCase()}
@@ -67,7 +69,6 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
         <hr className="border-gray-100 mb-12" />
 
-        {/* USER'S MASONRY GRID */}
         <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
           {posts && posts.length > 0 ? (
             posts.map((post) => (
@@ -77,8 +78,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                   alt={post.description}
                   className="w-full h-auto object-cover rounded-2xl"
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
-                   <p className="text-white text-xs font-medium truncate">{post.description}</p>
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-between">
+                  <p className="text-white text-xs font-medium truncate">{post.description}</p>
+                  <div className="text-white text-sm font-bold self-end">
+                    {post.recipe_requests[0]?.count ?? 0} Requests
+                  </div>
                 </div>
               </div>
             ))

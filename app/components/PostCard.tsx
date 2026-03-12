@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { requestRecipe } from '@/app/actions/recipeActions';
 import { deletePost } from '@/app/actions/postActions';
@@ -28,6 +29,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, currentUserId, showDeleteButton = false }: PostCardProps) {
+  const router = useRouter();
   const [isRequested, setIsRequested] = useState(post.user_has_requested);
   const [requestCount, setRequestCount] = useState(post.recipe_requests[0]?.count ?? 0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -46,41 +48,88 @@ export default function PostCard({ post, currentUserId, showDeleteButton = false
 
     const alreadyRequested = isRequested;
     setIsRequested(!alreadyRequested);
-    setRequestCount(prev => alreadyRequested ? prev - 1 : prev + 1);
+    setRequestCount((prev) => (alreadyRequested ? prev - 1 : prev + 1));
     setError(null);
 
     const result = await requestRecipe(post.id);
     if (result.error) {
       setError(result.error);
-      // Revert UI on error
       setIsRequested(alreadyRequested);
-      setRequestCount(prev => alreadyRequested ? prev + 1 : prev - 1);
+      setRequestCount((prev) => (alreadyRequested ? prev + 1 : prev - 1));
     }
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
-    // ... (delete logic)
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!currentUserId || currentUserId !== post.user_id) {
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this post?')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setError(null);
+      const result = await deletePost(post.id);
+      if (result?.error) {
+        setError(result.error);
+        setIsDeleting(false);
+        return;
+      }
+
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      setError('Something went wrong while deleting the post.');
+      setIsDeleting(false);
+    }
   };
 
   const canDelete = showDeleteButton && currentUserId === post.user_id;
 
   return (
-    <div className={`break-inside-avoid mb-4 group relative ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-      <Link href={`/post/${post.id}`} className="cursor-pointer">
-        <div className="relative rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
-          <img src={post.image_url} alt={post.description} className="w-full h-auto object-cover" />
+    <div
+      className={`break-inside-avoid mb-4 group relative ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+    >
+      <Link href={`/post/${post.id}`} className="cursor-pointer block">
+        <div className="relative overflow-hidden rounded-2xl shadow-sm transition-all duration-300 group-hover:shadow-xl">
+          <img
+            src={post.image_url}
+            alt={post.description}
+            className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
           {canDelete && (
-            <div className="absolute top-2 right-2">
-              {/* ... (delete button) */}
+            <div className="absolute top-2 right-2 z-10">
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="bg-black/60 hover:bg-black/80 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
             </div>
           )}
         </div>
       </Link>
+
       <div className="mt-2 px-1 space-y-3">
-        <h3 className="text-sm font-bold text-slate-900 leading-tight line-clamp-2">{post.description}</h3>
+        <h3 className="text-sm font-bold text-slate-900 leading-tight line-clamp-2 group-hover:text-slate-950 transition-colors">
+          {post.description}
+        </h3>
 
         <div className="flex items-center justify-between gap-2">
-          <button onClick={handleRequest} className={`flex-grow px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all ${isRequested ? 'bg-slate-200 text-slate-600' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+          <button
+            onClick={handleRequest}
+            className={`flex-grow px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all ${
+              isRequested ? 'bg-slate-200 text-slate-600' : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+          >
             {isRequested ? '✓ Requested' : 'Request Recipe'}
           </button>
           <div className="text-sm font-bold text-slate-600 pr-2">{requestCount}</div>
@@ -88,14 +137,16 @@ export default function PostCard({ post, currentUserId, showDeleteButton = false
 
         <div className="flex items-center justify-between text-xs text-slate-500">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center text-[10px] font-bold text-orange-700">{authorDisplay.charAt(0).toUpperCase()}</div>
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-700">
+              {authorDisplay.charAt(0).toUpperCase()}
+            </div>
             <p className="font-medium">{authorDisplay}</p>
           </div>
           <Link href={`/post/${post.id}#comments`} className="hover:underline">
             {post.commentCount} comments
           </Link>
         </div>
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
       </div>
     </div>
   );

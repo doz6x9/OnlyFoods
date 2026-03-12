@@ -4,36 +4,48 @@ import { notFound } from 'next/navigation';
 import CommentForm from './CommentForm';
 
 type PostPageProps = {
-  params: Promise<{ // The params object itself is a Promise
+  params: {
     postId: string;
-  }>;
+  };
 };
 
 export default async function PostPage({ params }: PostPageProps) {
-  const { postId } = await params; // Await the promise to get the values
+  const { postId } = params;
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { data: post, error } = await supabase
+  const { data: post, error: postError } = await supabase
     .from('posts')
-    .select(`
+    .select(
+      `
       *,
-      profiles (id, email),
-      comments (
-        id,
-        content,
-        created_at,
-        profiles (id, email)
-      )
-    `)
+      profiles (id, email)
+    `,
+    )
     .eq('id', postId)
-    .order('created_at', { referencedTable: 'comments', ascending: true })
     .single();
 
-  if (error || !post) {
+  if (postError || !post) {
     notFound();
   }
+
+  const { data: comments, error: commentsError } = await supabase
+    .from('comments')
+    .select(
+      `
+      id,
+      content,
+      created_at,
+      profiles (id, email)
+    `,
+    )
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+
+  const safeComments = commentsError || !comments ? [] : comments;
 
   const authorDisplay = post.profiles?.email.split('@')[0] || 'Pécs Student';
 
@@ -64,8 +76,8 @@ export default async function PostPage({ params }: PostPageProps) {
 
         <div id="comments" className="flex-grow space-y-4 overflow-y-auto">
           <h2 className="text-lg font-bold text-slate-800">Comments</h2>
-          {post.comments.length > 0 ? (
-            post.comments.map((comment) => (
+          {safeComments.length > 0 ? (
+            safeComments.map((comment) => (
               <div key={comment.id} className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-slate-100 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold">
                   {comment.profiles?.email.charAt(0).toUpperCase()}
@@ -86,13 +98,18 @@ export default async function PostPage({ params }: PostPageProps) {
           )}
         </div>
 
-        {user ? (
+        <div className="space-y-2">
+          {!user && (
+            <p className="text-xs text-center text-slate-500">
+              You&apos;ll need to{' '}
+              <Link href="/login" className="text-red-600 font-semibold hover:underline">
+                log in
+              </Link>{' '}
+              for your comment to be posted.
+            </p>
+          )}
           <CommentForm postId={post.id} />
-        ) : (
-          <p className="text-sm text-center">
-            <Link href="/login" className="text-red-600 font-semibold hover:underline">Log in</Link> to leave a comment.
-          </p>
-        )}
+        </div>
       </div>
     </div>
   );

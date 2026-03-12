@@ -40,11 +40,16 @@ export async function uploadMeal(formData: FormData) {
   // 2. Get form data
   const image = formData.get('image') as File
   const description = formData.get('description') as string
+  const category = formData.get('category') as string // Get the category
   const has_recipe = formData.get('has_recipe') === 'on'
   const recipe_text = formData.get('recipe_text') as string | null
 
   if (!image || image.size === 0) {
     return redirect('/upload?message=Please select an image to upload.')
+  }
+
+  if (!category) {
+    return redirect('/upload?message=Please select a category.')
   }
 
   // 3. Upload image to storage
@@ -72,6 +77,7 @@ export async function uploadMeal(formData: FormData) {
     user_id: user.id,
     image_url: publicUrlData.publicUrl,
     description,
+    category, // Save the category
     has_recipe,
     recipe_text: has_recipe ? recipe_text : null,
   })

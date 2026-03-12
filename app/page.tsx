@@ -16,7 +16,7 @@ export default async function Home({
     .from('posts')
     .select(`
       *,
-      profiles!posts_user_id_fkey (id, email),
+      profiles!posts_user_id_fkey (id, email, avatar_url),
       recipe_requests (user_id),
       comments (count)
     `)

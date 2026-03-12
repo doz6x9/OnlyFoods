@@ -1,35 +1,43 @@
 @import "tailwindcss";
 
+@source "../app";
+@source "../components";
+@source "../pages";
+
+@theme {
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-primary: #059669; /* emerald-600 */
+  --radius: 0.75rem;
+}
+
+/* Custom Utilities that mimic v3/custom config */
+@utility masonry-grid {
+  display: flex;
+  margin-left: -16px;
+  width: auto;
+}
+
+@utility masonry-column {
+  padding-left: 16px;
+  background-clip: padding-box;
+}
+
+/* Base Styles */
 body {
-  background-color: #ffffff;
-  color: #111111;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
-/* Pinterest Masonry Grid */
-.masonry-grid {
-  column-count: 2;
-  column-gap: 16px;
-  width: 100%;
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
 }
-
-@media (min-width: 768px) {
-  .masonry-grid {
-    column-count: 3;
-  }
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-@media (min-width: 1024px) {
-  .masonry-grid {
-    column-count: 5;
-  }
-}
-
-/* Prevent images from breaking across columns */
-.masonry-item {
-  break-inside: avoid;
-  margin-bottom: 16px;
-}
-
-.break-inside-avoid {
-  break-inside: avoid;
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
 }

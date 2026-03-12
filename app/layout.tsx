@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Nunito } from 'next/font/google';
 import './globals.css';
-import Header from './components/Header'; // Import the new Header
+import Header from './components/Header';
+import FloatingFoodBackground from './components/FloatingFoodBackground';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const nunito = Nunito({ subsets: ['latin'], variable: '--font-nunito' });
 
 export const metadata: Metadata = {
-  title: 'Pécs Eats - Share Your Meals',
-  description: 'A food sharing social network for the students of Pécs.',
+  title: 'OnlyFoods - Fresh & Local',
+  description: 'The tastiest social network in Pécs.',
 };
 
 export default function RootLayout({
@@ -17,9 +19,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50 text-slate-800`}>
+      <body className={`${inter.variable} ${nunito.variable} font-sans min-h-screen bg-slate-50 text-slate-900 antialiased overflow-x-hidden`}>
+        <FloatingFoodBackground />
         <Header />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10">
           {children}
         </main>
       </body>

@@ -1,3 +1,35 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  background-color: #0d0d0d; /* Deep Black */
+  color: white;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0d0d0d;
+  min-height: 100vh;
+  /* This creates a subtle glow in the background */
+  background-image:
+    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(225,39%,30%,0.1) 0, transparent 50%);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Hide scrollbar for a cleaner mobile look */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

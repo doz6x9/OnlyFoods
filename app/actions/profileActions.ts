@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { sanitizeFileName, isAllowedImageType } from '@/lib/validation';
 
 export async function uploadAvatar(formData: FormData) {
   const supabase = await createClient();
@@ -22,13 +23,12 @@ export async function uploadAvatar(formData: FormData) {
     return { error: 'Image size must be less than 2MB.' };
   }
 
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-  if (!allowedTypes.includes(image.type)) {
-    return { error: 'Only JPG, PNG and WEBP images are allowed.' };
+  if (!isAllowedImageType(image.type)) {
+    return { error: 'Only JPG, PNG, GIF, and WEBP images are allowed.' };
   }
 
-  const fileExt = image.name.split('.').pop();
-  const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`;
+  const safeName = sanitizeFileName(image.name || 'avatar');
+  const filePath = `${user.id}/avatar_${Date.now()}_${safeName}`;
 
   const { error: uploadError } = await supabase.storage
     .from('avatars')
@@ -77,15 +77,12 @@ export async function uploadCover(formData: FormData) {
     return { error: 'Image size must be less than 4MB.' };
   }
 
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-  if (!allowedTypes.includes(image.type)) {
-    return { error: 'Only JPG, PNG and WEBP images are allowed.' };
+  if (!isAllowedImageType(image.type)) {
+    return { error: 'Only JPG, PNG, GIF, and WEBP images are allowed.' };
   }
 
-  const fileExt = image.name.split('.').pop();
-  // Store in a 'covers' folder within the user's directory if you want,
-  // or just name it differently. Let's use prefix.
-  const filePath = `${user.id}/cover_${Date.now()}.${fileExt}`;
+  const safeName = sanitizeFileName(image.name || 'cover');
+  const filePath = `${user.id}/cover_${Date.now()}_${safeName}`;
 
   const { error: uploadError } = await supabase.storage
     .from('avatars') // Reusing the avatars bucket which has public access

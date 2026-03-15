@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import { uploadMeal } from './actions'
-import { UploadCloud, Camera, FileText, Tag, Utensils, X, ChefHat } from 'lucide-react'
+import { UploadCloud, Camera, FileText, Tag, X, ChefHat, Flame, Leaf } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
+import imageCompression from 'browser-image-compression'
 
 const CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Healthy', 'Pécs Specials'];
+const DIETARY_BADGES = ['Vegan', 'Vegetarian', 'Gluten-Free', 'Dairy-Free', 'Halal'];
 
 function SubmitButton() {
   const { pending } = useFormStatus()
@@ -33,18 +35,63 @@ function SubmitButton() {
 export default function UploadPage() {
   const [hasRecipe, setHasRecipe] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
+  const [compressedFile, setCompressedFile] = useState<File | null>(null)
+  const [isCompressing, setIsCompressing] = useState(false)
+  const [clientError, setClientError] = useState<string | null>(null)
+  const [spiceLevel, setSpiceLevel] = useState(0)
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    setClientError(null)
+
     if (file) {
+      // 1. Client-side Type Validation
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif']
+      if (!allowedTypes.includes(file.type)) {
+        setClientError('Only JPG, PNG, WEBP, and GIF images are allowed.')
+        return
+      }
+
+      // Show immediate preview
       const url = URL.createObjectURL(file)
       setPreview(url)
+
+      // 2. Compress the image
+      setIsCompressing(true)
+      try {
+        const options = {
+          maxSizeMB: 1, // Max size 1MB for main feed images
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        }
+        const compressedBlob = await imageCompression(file, options)
+        const compressed = new File([compressedBlob], file.name, {
+          type: compressedBlob.type,
+          lastModified: Date.now(),
+        })
+        setCompressedFile(compressed)
+      } catch (error) {
+        console.error('Error compressing image:', error)
+        setClientError('Failed to process image. Please try another one.')
+      } finally {
+        setIsCompressing(false)
+      }
     }
   }
 
   const clearPreview = () => {
     setPreview(null)
-    // Reset file input value if needed via ref, but state reset is visual enough for now
+    setCompressedFile(null)
+    setClientError(null)
+  }
+
+  // Intercept the form submission to inject the compressed image
+  const handleAction = async (formData: FormData) => {
+    if (compressedFile) {
+      formData.set('image', compressedFile)
+    }
+    formData.set('spice_level', spiceLevel.toString());
+    await uploadMeal(formData)
   }
 
   return (
@@ -71,44 +118,54 @@ export default function UploadPage() {
                     <X size={24} />
                   </button>
                 </div>
+                {isCompressing && (
+                  <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-xs font-bold text-center py-2 backdrop-blur-sm">
+                    Compressing image...
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-center w-full h-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer relative"
+                className={`text-center w-full h-full flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl transition-all cursor-pointer relative ${clientError ? 'border-red-400 bg-red-50' : 'border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/30'}`}
               >
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm text-emerald-500">
+                <div className={`w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm ${clientError ? 'text-red-500' : 'text-emerald-500'}`}>
                   <Camera size={32} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-2">Upload Photo</h3>
-                <p className="text-slate-500 text-sm max-w-xs mx-auto">
+                <p className="text-slate-500 text-sm max-w-xs mx-auto mb-2">
                   Drag and drop or click to browse. Show us what's cooking!
                 </p>
+                <p className="text-xs text-slate-400 font-medium">JPEG, PNG, WEBP, GIF</p>
                 <input
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   type="file"
                   id="image"
                   name="image"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
                   onChange={handleImageChange}
-                  required
+                  required={!compressedFile}
                 />
               </motion.div>
             )}
           </AnimatePresence>
+          {clientError && (
+            <p className="text-red-500 text-sm font-medium mt-4 text-center bg-red-50 py-2 px-4 rounded-lg w-full">
+              {clientError}
+            </p>
+          )}
         </div>
 
         {/* Right Side: Form Details */}
-        <div className="md:w-1/2 p-8 lg:p-10 flex flex-col justify-center">
+        <div className="md:w-1/2 p-8 lg:p-10 flex flex-col justify-center max-h-[80vh] overflow-y-auto custom-scrollbar">
           <div className="mb-8">
             <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Food Details</h1>
             <p className="text-slate-500 font-medium">Tell us about this deliciousness.</p>
           </div>
 
-          <form action={uploadMeal} className="space-y-6">
-            {/* Hidden input to ensure file is submitted if preview is set, though file input handles it naturally */}
+          <form action={handleAction} className="space-y-6">
 
             {/* Category Select */}
             <div className="space-y-2 group">
@@ -149,6 +206,51 @@ export default function UploadPage() {
                 rows={3}
                 required
               />
+            </div>
+
+            {/* Unique Features: Spice & Badges */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Spice Level */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <Flame size={16} className={spiceLevel > 0 ? "text-orange-500" : "text-slate-400"} />
+                  Spice Level
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setSpiceLevel(spiceLevel === level ? 0 : level)}
+                      className={`p-2 rounded-xl border-2 transition-all ${
+                        spiceLevel >= level
+                          ? 'border-orange-500 bg-orange-50 text-orange-500'
+                          : 'border-slate-100 bg-slate-50 text-slate-300 hover:border-orange-200'
+                      }`}
+                    >
+                      <Flame size={20} className={spiceLevel >= level ? 'fill-orange-500' : ''} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dietary Badges (Multi-select) */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <Leaf size={16} className="text-green-500" />
+                  Dietary Tags
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {DIETARY_BADGES.map((badge) => (
+                    <label key={badge} className="relative cursor-pointer">
+                      <input type="checkbox" name="dietary_badges" value={badge} className="peer sr-only" />
+                      <div className="px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-slate-100 bg-slate-50 text-slate-500 transition-all peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 hover:border-green-200">
+                        {badge}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Recipe Toggle */}

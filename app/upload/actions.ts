@@ -44,6 +44,9 @@ export async function uploadMeal(formData: FormData) {
   const category = (formData.get('category') as string) ?? ''
   const has_recipe = formData.get('has_recipe') === 'on'
   let recipe_text = (formData.get('recipe_text') as string) ?? null
+  const spiceLevelStr = formData.get('spice_level') as string;
+  const spice_level = parseInt(spiceLevelStr, 10) || 0;
+  const dietary_badges = formData.getAll('dietary_badges') as string[];
 
   if (!image || image.size === 0) {
     return redirect('/upload?message=Please select an image to upload.')
@@ -94,9 +97,11 @@ export async function uploadMeal(formData: FormData) {
     user_id: user.id,
     image_url: publicUrlData.publicUrl,
     description,
-    category, // Save the category
+    category,
     has_recipe,
     recipe_text: has_recipe ? recipe_text : null,
+    spice_level,
+    dietary_badges,
   })
 
   if (dbError) {

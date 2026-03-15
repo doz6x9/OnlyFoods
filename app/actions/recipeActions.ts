@@ -17,25 +17,46 @@ export async function requestRecipe(postId: string) {
     return { error: 'You must be logged in to request a recipe.' };
   }
 
-  // Attempt to insert the request.
-  // The database's primary key will prevent duplicates.
-  const { error } = await supabase.from('recipe_requests').insert({
-    post_id: postId,
-    user_id: user.id,
-  });
+  // Check if request already exists
+  const { data: existingRequest, error: checkError } = await supabase
+    .from('recipe_requests')
+    .select('user_id')
+    .eq('post_id', postId)
+    .eq('user_id', user.id)
+    .single();
 
-  if (error) {
-    // Check if the error is because of a duplicate key violation
-    if (error.code === '23505') { // Unique violation
-      return { error: 'You have already requested this recipe.' };
+  if (checkError && checkError.code !== 'PGRST116') {
+    console.error('Error checking request status:', checkError);
+  }
+
+  if (existingRequest) {
+    // Undo request
+    const { error: deleteError } = await supabase
+      .from('recipe_requests')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', user.id);
+
+    if (deleteError) {
+      console.error('Error removing recipe request:', deleteError);
+      return { error: 'Failed to undo request.' };
     }
-    console.error('Error requesting recipe:', error);
-    return { error: 'An unexpected error occurred.' };
+  } else {
+    // Create request
+    const { error: insertError } = await supabase
+      .from('recipe_requests')
+      .insert({ post_id: postId, user_id: user.id });
+
+    if (insertError) {
+      console.error('Error requesting recipe:', insertError);
+      return { error: 'Failed to request recipe.' };
+    }
   }
 
   // Revalidate the path of the post to update the UI
   revalidatePath('/');
-  revalidatePath(`/profile/${user.id}`); // Also revalidate profile pages
+  revalidatePath(`/post/${postId}`);
+  revalidatePath(`/profile/${user.id}`);
 
   return { success: true };
 }

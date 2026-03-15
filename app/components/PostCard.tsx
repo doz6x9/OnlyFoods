@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { requestRecipe } from '@/app/actions/recipeActions';
 import { deletePost } from '@/app/actions/postActions';
 import Link from 'next/link';
-import { Trash2, MessageCircle, BookOpen } from 'lucide-react';
+import { Trash2, MessageCircle, BookOpen, Flame, Leaf } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommentForm from './CommentForm';
 import LikeButton from './LikeButton';
@@ -17,6 +17,8 @@ interface Post {
   description: string;
   has_recipe: boolean;
   created_at: string;
+  spice_level?: number;
+  dietary_badges?: string[];
   profiles: {
     id: string;
     email: string;
@@ -43,7 +45,7 @@ export default function PostCard({ post, currentUserId, showDeleteButton = false
   const [error, setError] = useState<string | null>(null);
   const [showCommentBox, setShowCommentBox] = useState(false);
 
-  const authorDisplay = post.profiles?.email?.split('@')[0] || 'Pécs';
+  const authorDisplay = post.profiles?.email?.split('@')[0] || 'Pécs Student';
 
   const handleRequest = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -94,74 +96,124 @@ export default function PostCard({ post, currentUserId, showDeleteButton = false
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.25 }}
-      className={`break-inside-avoid group relative bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-sm hover:shadow-md hover:border-stone-200/80 transition-all duration-200 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+      className={`break-inside-avoid group relative bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
     >
-      {/* Image: natural ratio, like Pinterest */}
-      <div className="relative overflow-hidden bg-stone-50 rounded-t-2xl">
+      <div className="relative overflow-hidden bg-slate-50">
         <Link href={`/post/${post.id}`} className="block">
           <img
             src={post.image_url}
             alt={post.description}
-            className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300"
+            className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-500"
           />
         </Link>
 
-        {/* Hover overlay + Recipe button on image (Pinterest-style) — only button is clickable so image still links */}
-        <div className="absolute inset-0 flex items-end justify-end p-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-          <button
-            type="button"
-            onClick={handleRequest}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold shadow-lg transition-all pointer-events-auto ${
-              isRequested
-                ? 'bg-emerald-500 text-white'
-                : 'bg-white text-stone-800 hover:bg-stone-100'
-            }`}
-          >
-            <BookOpen size={14} className={isRequested ? 'fill-white' : ''} />
-            {isRequested ? 'Requested' : 'Recipe'}
-          </button>
-        </div>
-
-        {canDelete && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="absolute top-2 right-2 p-2 rounded-full bg-white/90 text-stone-400 hover:text-red-500 hover:bg-white shadow-md transition-all z-10 opacity-0 group-hover:opacity-100"
-            title="Delete"
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
-      </div>
-
-      <div className="p-3.5">
-        <Link href={`/post/${post.id}`} className="block mb-3">
-          <p className="text-sm font-medium text-stone-800 line-clamp-2 leading-snug hover:text-stone-600 transition-colors">
-            {post.description}
-          </p>
-        </Link>
-
-        {requestCount > 0 && (
-          <p className="text-[11px] font-medium text-stone-400 mb-2">{requestCount} want this recipe</p>
-        )}
-
-        <div className="flex items-center justify-between pt-2.5 border-t border-stone-100">
-          <div className="flex items-center gap-2 min-w-0">
+        {/* Top Overlay: Avatar (Always Visible) & Delete (Hover) */}
+        <div className="absolute top-0 inset-x-0 p-3 flex justify-between items-start z-10 bg-gradient-to-b from-black/40 to-transparent pointer-events-none">
+          {/* Avatar Top Left - ALWAYS VISIBLE */}
+          <Link href={`/profile/${post.user_id}`} className="flex items-center gap-2 pointer-events-auto hover:opacity-80 transition-opacity">
             {post.profiles?.avatar_url ? (
               <img
                 src={post.profiles.avatar_url}
                 alt=""
-                className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                className="w-8 h-8 rounded-full object-cover ring-2 ring-white/50 shadow-sm"
               />
             ) : (
-              <div className="w-5 h-5 rounded-full bg-amber-200/80 flex items-center justify-center text-[10px] font-bold text-amber-800 flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/50 shadow-sm">
                 {authorDisplay.charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="text-xs text-stone-500 truncate">{authorDisplay}</span>
+            <span className="text-sm font-semibold text-white drop-shadow-md truncate max-w-[120px]">{authorDisplay}</span>
+          </Link>
+
+          {canDelete && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="p-2 rounded-full bg-white/90 text-slate-400 hover:text-red-500 hover:bg-white shadow-md transition-all opacity-0 group-hover:opacity-100 pointer-events-auto"
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Badges Overlay (Below Avatar) */}
+        <div className="absolute top-14 left-3 flex flex-col gap-1 pointer-events-none z-10">
+          {post.spice_level && post.spice_level > 0 ? (
+            <div className="bg-white/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 shadow-sm w-fit">
+              <Flame size={12} className="text-orange-500 fill-orange-500" />
+              <span className="text-[10px] font-bold text-orange-600">{post.spice_level}</span>
+            </div>
+          ) : null}
+          {post.dietary_badges?.slice(0, 2).map((badge) => (
+            <div key={badge} className="bg-white/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 shadow-sm w-fit">
+              <Leaf size={10} className="text-emerald-500" />
+              <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wide">{badge.slice(0, 3)}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Actions Overlay (Request on Left, Comment on Right) */}
+        <div className="absolute inset-x-0 bottom-0 p-3 flex justify-between items-end opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none">
+
+          {/* Left Side: Recipe Request Button */}
+          <div className="pointer-events-auto">
+            <button
+              type="button"
+              onClick={handleRequest}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold shadow-lg transition-all transform hover:scale-105 active:scale-95 ${
+                isRequested
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-white/90 backdrop-blur-md text-slate-800 hover:bg-white'
+              }`}
+            >
+              <BookOpen size={14} className={isRequested ? 'fill-white' : ''} />
+              {isRequested ? 'Requested' : 'Recipe'}
+            </button>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+
+          {/* Right Side: Comment Button Overlay */}
+          <div className="pointer-events-auto">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowCommentBox(!showCommentBox);
+              }}
+              className="flex flex-col items-center gap-1 group/comments"
+              title="Comments"
+            >
+              <div className="p-2.5 rounded-full shadow-lg backdrop-blur-md transition-all bg-white/80 text-slate-700 hover:bg-white">
+                <MessageCircle size={20} className="group-hover/comments:text-emerald-600 transition-colors" />
+              </div>
+              {post.commentCount > 0 && (
+                <span className="text-[11px] font-bold text-white drop-shadow-md">
+                  {post.commentCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Post Content Below Image */}
+      <div className="p-4 pt-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <Link href={`/post/${post.id}`} className="block">
+              <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug group-hover:text-emerald-600 transition-colors">
+                {post.description}
+              </h3>
+            </Link>
+            {requestCount > 0 && (
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{requestCount} want this recipe</p>
+            )}
+          </div>
+
+          <div className="mt-0.5 flex-shrink-0">
+            {/* Like Button (Heart is now much bigger) */}
             <LikeButton
               postId={post.id}
               initialLiked={post.user_has_liked}
@@ -169,39 +221,28 @@ export default function PostCard({ post, currentUserId, showDeleteButton = false
               currentUserId={currentUserId}
               variant="compact"
             />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowCommentBox(!showCommentBox);
-              }}
-              className="flex items-center gap-1 text-stone-400 hover:text-amber-600 transition-colors"
-            >
-              <MessageCircle size={14} />
-              <span className="text-xs font-medium">{post.commentCount}</span>
-            </button>
           </div>
         </div>
-      </div>
 
-      <AnimatePresence>
-        {showCommentBox && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden border-t border-stone-100"
-          >
-            <div className="p-3 pt-2 bg-stone-50/50">
-              <CommentForm postId={post.id} />
-            </div>
-          </motion.div>
+        <AnimatePresence>
+          {showCommentBox && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden mt-3 pt-3 border-t border-slate-100"
+            >
+              <div className="bg-slate-50/80 rounded-xl p-2 border border-slate-100">
+                <CommentForm postId={post.id} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {error && (
+          <p className="mt-2 text-xs text-red-500 font-medium">{error}</p>
         )}
-      </AnimatePresence>
-
-      {error && (
-        <p className="px-3.5 pb-3 text-xs text-red-500 font-medium">{error}</p>
-      )}
+      </div>
     </motion.article>
   );
 }

@@ -165,3 +165,53 @@ export async function updateRecipe(postId: string, recipeText: string) {
   revalidatePath('/');
   return { success: true };
 }
+
+export async function toggleLike(postId: string) {
+  if (!postId || !isValidUuid(postId)) {
+    return { error: 'Invalid post.' };
+  }
+
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Authentication required.' };
+  }
+
+  // Check if the like already exists
+  const { data: existingLike, error: checkError } = await supabase
+    .from('likes')
+    .select('user_id')
+    .eq('post_id', postId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') {
+    // Ignore "Row not found" error, log others
+    console.error('Error checking like status:', checkError);
+  }
+
+  if (existingLike) {
+    // Remove like
+    const { error: deleteError } = await supabase
+      .from('likes')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', user.id);
+
+    if (deleteError) return { error: 'Failed to unlike post.' };
+  } else {
+    // Add like
+    const { error: insertError } = await supabase
+      .from('likes')
+      .insert({ post_id: postId, user_id: user.id });
+
+    if (insertError) return { error: 'Failed to like post.' };
+  }
+
+  revalidatePath('/');
+  revalidatePath(`/post/${postId}`);
+
+  return { success: true };
+}
